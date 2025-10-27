@@ -1,0 +1,28 @@
+# ⚠️ Secrets - NUNCA commitar senhas!
+k8s/secrets.yaml
+*.secret.yaml
+*.secrets.yaml
+
+# Backups
+*.backup
+*.bak
+*.sql
+*.dump
+
+# Kubernetes temporary files
+*.tmp
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

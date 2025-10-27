@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: devquote
+  labels:
+    name: devquote
+    environment: production
+    app: devquote

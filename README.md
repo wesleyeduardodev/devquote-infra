@@ -122,6 +122,37 @@ kubectl rollout undo deployment/backend -n devquote
 kubectl top pods -n devquote
 ```
 
+# Ver todos os pods do namespace devquote
+kubectl get pods -n devquote
+
+# Com mais detalhes (IP, node, etc)
+kubectl get pods -n devquote -o wide
+
+# Com atualização em tempo real (watch)
+kubectl get pods -n devquote -w
+
+# Ver todos os pods de todos os namespaces
+kubectl get pods --all-namespaces
+
+# Resumo de status
+kubectl get pods -n devquote | grep -E "Running|Pending|Error|CrashLoop"
+
+  ---
+📊 Comandos úteis relacionados:
+
+# Ver serviços
+kubectl get svc -n devquote
+
+# Ver tudo do namespace
+kubectl get all -n devquote
+
+# Ver eventos recentes
+kubectl get events -n devquote --sort-by='.lastTimestamp'
+
+# Ver uso de recursos
+kubectl top pods -n devquote
+
+
 ---
 
 ## Recursos

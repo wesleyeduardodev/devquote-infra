@@ -31,6 +31,11 @@ spec:
         envFrom:
         - secretRef:
             name: devquote-secrets
+        env:
+        - name: REDIS_HOST
+          value: "redis.devquote.svc.cluster.local"
+        - name: REDIS_PORT
+          value: "6379"
         resources:
           requests:
             memory: "512Mi"

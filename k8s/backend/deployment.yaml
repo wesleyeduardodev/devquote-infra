@@ -23,7 +23,7 @@ spec:
     spec:
       containers:
       - name: backend
-        image: wesleyeduardodev/devquote-backend:sha-ee4ad71
+        image: wesleyeduardodev/devquote-backend:latest
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

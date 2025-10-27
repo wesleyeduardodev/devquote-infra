@@ -11,6 +11,7 @@ Infraestrutura Kubernetes (K3s) para DevQuote com GitOps via Argo CD.
 - **K3s** - Kubernetes leve
 - **Traefik** - Ingress Controller
 - **PostgreSQL 17** - Banco de dados
+- **Redis 7** - Cache
 - **Prometheus + Grafana** - Observabilidade
 - **Argo CD** - GitOps
 - **Sealed Secrets** - Gerenciamento seguro de secrets
@@ -30,6 +31,7 @@ devquote-infra/
 │   ├── backend/
 │   ├── frontend/
 │   ├── database/
+│   ├── redis/
 │   ├── ingress/
 │   └── monitoring/
 └── docs/
@@ -65,8 +67,9 @@ git push
 kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/sealed-secrets.yaml
 
-# Database
+# Database + Redis
 kubectl apply -f k8s/database/
+kubectl apply -f k8s/redis/
 
 # Backend + Frontend
 kubectl apply -f k8s/backend/
@@ -112,46 +115,59 @@ kubectl rollout restart deployment/backend -n devquote
 # Logs
 kubectl logs -f deployment/backend -n devquote
 
+# Ver todos os pods
+kubectl get pods -n devquote
+
+# Com atualização em tempo real (watch)
+kubectl get pods -n devquote -w
+
+# Ver serviços
+kubectl get svc -n devquote
+
+# Ver eventos recentes
+kubectl get events -n devquote --sort-by='.lastTimestamp'
+
 # Escalar
 kubectl scale deployment backend --replicas=3 -n devquote
 
 # Rollback
 kubectl rollout undo deployment/backend -n devquote
 
-# Recursos
+# Ver uso de recursos
 kubectl top pods -n devquote
 ```
 
-# Ver todos os pods do namespace devquote
-kubectl get pods -n devquote
+---
 
-# Com mais detalhes (IP, node, etc)
-kubectl get pods -n devquote -o wide
+## Redis Cache
 
-# Com atualização em tempo real (watch)
-kubectl get pods -n devquote -w
+### Verificar Chaves no Redis
 
-# Ver todos os pods de todos os namespaces
-kubectl get pods --all-namespaces
+```bash
+# Conectar no pod do Redis
+kubectl exec -it redis-0 -n devquote -- redis-cli
 
-# Resumo de status
-kubectl get pods -n devquote | grep -E "Running|Pending|Error|CrashLoop"
+# Dentro do redis-cli:
+KEYS *                    # Listar todas as chaves
+GET "projects::1"         # Ver conteúdo de uma chave
+TTL "projects::1"         # Ver tempo de expiração (segundos)
+FLUSHALL                  # Limpar todas as chaves (cuidado!)
+exit                      # Sair
 
-  ---
-📊 Comandos úteis relacionados:
+# Comandos diretos (sem entrar no redis-cli):
+kubectl exec -it redis-0 -n devquote -- redis-cli KEYS "*"
+kubectl exec -it redis-0 -n devquote -- redis-cli GET "projects::1"
+kubectl exec -it redis-0 -n devquote -- redis-cli TTL "projects::1"
+kubectl exec -it redis-0 -n devquote -- redis-cli INFO
+kubectl exec -it redis-0 -n devquote -- redis-cli MONITOR
 
-# Ver serviços
-kubectl get svc -n devquote
+# Ver logs do Redis
+kubectl logs -f redis-0 -n devquote
+```
 
-# Ver tudo do namespace
-kubectl get all -n devquote
-
-# Ver eventos recentes
-kubectl get events -n devquote --sort-by='.lastTimestamp'
-
-# Ver uso de recursos
-kubectl top pods -n devquote
-
+**Cache configurado:**
+- TTL: 10 minutos
+- Método cacheado: `findById()` em `ProjectServiceImpl`
 
 ---
 
@@ -162,6 +178,7 @@ kubectl top pods -n devquote
 | Backend | 2 | 512-750Mi | 300-500m |
 | Frontend | 1 | 128-256Mi | 100-200m |
 | PostgreSQL | 1 | 256-512Mi | 250-500m |
+| Redis | 1 | 128-256Mi | 100-200m |
 | Prometheus | 1 | 256-512Mi | 100-200m |
 | Grafana | 1 | 128-256Mi | 50-100m |
 

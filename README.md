@@ -175,7 +175,7 @@ kubectl logs -f redis-0 -n devquote
 
 | Componente | Réplicas | RAM | CPU |
 |------------|----------|-----|-----|
-| Backend | 2 | 512-750Mi | 300-500m |
+| Backend | 1 | 512-750Mi | 400-800m |
 | Frontend | 1 | 128-256Mi | 100-200m |
 | PostgreSQL | 1 | 256-512Mi | 250-500m |
 | Redis | 1 | 128-256Mi | 100-200m |

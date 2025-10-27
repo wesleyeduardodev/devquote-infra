@@ -7,7 +7,7 @@ metadata:
     app: backend
     component: api
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: backend
@@ -39,15 +39,15 @@ spec:
         resources:
           requests:
             memory: "512Mi"
-            cpu: "300m"
+            cpu: "400m"
           limits:
             memory: "750Mi"
-            cpu: "500m"
+            cpu: "800m"
         livenessProbe:
           httpGet:
             path: /actuator/health
             port: 8080
-          initialDelaySeconds: 60
+          initialDelaySeconds: 90
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 3

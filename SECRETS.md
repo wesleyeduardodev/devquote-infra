@@ -1,407 +1,180 @@
-# 🔐 Gerenciamento de Secrets - DevQuote
+# Gerenciamento de Secrets
 
-Este documento explica como gerenciar secrets (credenciais, senhas, API keys) no projeto DevQuote usando **Sealed Secrets**.
-
-## 📋 Índice
-
-- [Como Funciona](#como-funciona)
-- [Arquivos Importantes](#arquivos-importantes)
-- [Operações Comuns](#operações-comuns)
-  - [Alterar uma Secret Existente](#alterar-uma-secret-existente)
-  - [Adicionar Nova Secret](#adicionar-nova-secret)
-  - [Remover uma Secret](#remover-uma-secret)
-- [Troubleshooting](#troubleshooting)
+Este projeto usa **Sealed Secrets** para versionamento seguro de credenciais.
 
 ---
 
-## 🎯 Como Funciona
-
-### Fluxo de Secrets
+## Como Funciona
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  1. DESENVOLVIMENTO (Seu PC)                                │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  secrets.yaml (texto claro)                                 │
-│    POSTGRES_PASSWORD: MinhaSenh@123                         │
-│         ↓                                                   │
-│    kubeseal (criptografa)                                   │
-│         ↓                                                   │
-│  sealed-secrets.yaml (criptografado)                        │
-│    POSTGRES_PASSWORD: AgBY8f7kx... (hash de 2048 chars)     │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                         ↓
-                    git commit
-                    git push
-                         ↓
-┌─────────────────────────────────────────────────────────────┐
-│  2. REPOSITÓRIO GIT                                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  GitHub: devquote-infra                                     │
-│    ✅ k8s/sealed-secrets.yaml (SEGURO - criptografado)      │
-│    ❌ k8s/secrets.yaml (NÃO VAI PRO GIT - .gitignore)       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-                         ↓
-                     Argo CD
-                         ↓
-┌─────────────────────────────────────────────────────────────┐
-│  3. CLUSTER KUBERNETES                                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Argo CD aplica sealed-secrets.yaml                         │
-│         ↓                                                   │
-│  Sealed Secrets Controller (descriptografa)                 │
-│         ↓                                                   │
-│  Kubernetes Secret (texto claro, apenas dentro do cluster)  │
-│         ↓                                                   │
-│  Pods (leem as secrets como variáveis de ambiente)          │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+secrets.yaml (local, texto claro)
+      ↓ kubeseal (criptografa)
+sealed-secrets.yaml (criptografado)
+      ↓ git push
+GitHub (seguro)
+      ↓ Argo CD
+Kubernetes Secret
+      ↓
+Pods (variáveis de ambiente)
 ```
+
+**⚠️ NUNCA commitar `k8s/secrets.yaml` (texto claro)**  
+**✅ SEMPRE commitar `k8s/sealed-secrets.yaml` (criptografado)**
 
 ---
 
-## 📂 Arquivos Importantes
+## Alterar uma Secret
 
-```
-devquote-infra/
-├── .sealed-secrets/
-│   └── public-key.pem              ← Chave pública (local, não vai pro Git)
-├── k8s/
-│   ├── secrets.yaml                ← TEXTO CLARO (nunca commitar!)
-│   └── sealed-secrets.yaml         ← CRIPTOGRAFADO (vai pro Git ✅)
-└── .gitignore
-    ├── k8s/secrets.yaml            ← Protegido
-    └── .sealed-secrets/            ← Protegido
-```
-
-### ⚠️ IMPORTANTE
-
-- ✅ **SEMPRE commitar:** `k8s/sealed-secrets.yaml` (criptografado)
-- ❌ **NUNCA commitar:** `k8s/secrets.yaml` (texto claro)
-
----
-
-## 🛠️ Operações Comuns
-
-### Alterar uma Secret Existente
-
-**Exemplo:** Trocar a senha do PostgreSQL
-
-#### Passo 1: Editar o arquivo local
+### 1. Editar arquivo local
 
 ```bash
-cd devquote-infra
-
-# Editar secrets.yaml (texto claro)
 vim k8s/secrets.yaml
 ```
 
-Altere a variável desejada:
-
+Exemplo:
 ```yaml
-# DE:
-POSTGRES_PASSWORD: SenhaAntiga123
-
-# PARA:
-POSTGRES_PASSWORD: NovaSenha@2025!SuperForte
+stringData:
+  POSTGRES_PASSWORD: NovaSenha123!
 ```
 
-#### Passo 2: Re-criptografar
+### 2. Re-criptografar
 
 ```bash
-# Criptografar com kubeseal
 ~/bin/kubeseal.exe --format=yaml \
   --cert=.sealed-secrets/public-key.pem \
   < k8s/secrets.yaml \
   > k8s/sealed-secrets.yaml
-
-# Verificar que foi gerado
-ls -lh k8s/sealed-secrets.yaml
 ```
 
-#### Passo 3: Commitar e fazer push
+### 3. Commitar
 
 ```bash
-# Adicionar ao Git
 git add k8s/sealed-secrets.yaml
-
-# Commitar
 git commit -m "Update PostgreSQL password"
-
-# Push para o GitHub
-git push origin main
+git push
 ```
 
-#### Passo 4: Aguardar Argo CD aplicar (automático)
+### 4. Aguardar Argo CD (1-3 min)
 
-O Argo CD detecta a mudança em 1-3 minutos e aplica automaticamente.
+Argo CD aplica automaticamente.
 
-Para verificar:
-
-```bash
-# Ver status do Argo CD
-kubectl get application devquote -n argocd
-
-# Ver logs do Sealed Secrets Controller
-kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets --tail=20
-```
-
-#### Passo 5: Reiniciar pods (se necessário)
+### 5. Reiniciar pods (se necessário)
 
 ```bash
-# Reiniciar backend para usar nova senha
 kubectl rollout restart deployment/backend -n devquote
-
-# Verificar status
-kubectl get pods -n devquote -l app=backend
 ```
 
 ---
 
-### Adicionar Nova Secret
+## Adicionar Nova Secret
 
-**Exemplo:** Adicionar API key do SendGrid
-
-#### Passo 1: Editar secrets.yaml
-
-```bash
-vim k8s/secrets.yaml
-```
-
-Adicionar nova variável:
+### 1. Editar secrets.yaml
 
 ```yaml
 stringData:
-  # ... variáveis existentes ...
-  SENDGRID_API_KEY: SG.abc123xyz789...     # ← NOVA
+  # ... secrets existentes ...
+  NEW_API_KEY: abc123xyz789
 ```
 
-#### Passo 2: Re-criptografar
+### 2. Re-criptografar + Commitar
 
-```bash
-~/bin/kubeseal.exe --format=yaml \
-  --cert=.sealed-secrets/public-key.pem \
-  < k8s/secrets.yaml \
-  > k8s/sealed-secrets.yaml
-```
-
-#### Passo 3: Commitar
-
-```bash
-git add k8s/sealed-secrets.yaml
-git commit -m "Add SendGrid API key"
-git push origin main
-```
-
-#### Passo 4: Aguardar Argo CD
-
-Aguardar 1-3 minutos para aplicação automática.
-
-#### Passo 5: Atualizar código da aplicação
-
-Não esqueça de atualizar o código do backend/frontend para ler a nova variável:
-
-**Backend (application.properties):**
-```properties
-sendgrid.api-key=${SENDGRID_API_KEY}
-```
-
-**Deployment (k8s/backend/deployment.yaml):**
-Já está configurado para ler todas as variáveis do secret `devquote-secrets`.
+Mesmos passos acima (2-5).
 
 ---
 
-### Remover uma Secret
+## Remover uma Secret
 
-**Exemplo:** Remover variável MAIL_PASSWORD (não usa mais Gmail)
+### 1. Editar secrets.yaml
 
-#### Passo 1: Editar secrets.yaml
+Remover a linha da variável.
 
-```bash
-vim k8s/secrets.yaml
-```
+### 2. Re-criptografar + Commitar
 
-Remover a linha:
+Mesmos passos acima (2-5).
 
-```yaml
-stringData:
-  # ... outras variáveis ...
-  # MAIL_PASSWORD: bmgjzyoatrtxnmkd     ← REMOVIDO
-```
+### 3. Atualizar código
 
-#### Passo 2: Re-criptografar
-
-```bash
-~/bin/kubeseal.exe --format=yaml \
-  --cert=.sealed-secrets/public-key.pem \
-  < k8s/secrets.yaml \
-  > k8s/sealed-secrets.yaml
-```
-
-#### Passo 3: Commitar
-
-```bash
-git add k8s/sealed-secrets.yaml
-git commit -m "Remove MAIL_PASSWORD (migrated to SendGrid)"
-git push origin main
-```
-
-#### Passo 4: Aguardar Argo CD
-
-Aguardar aplicação automática.
-
-#### Passo 5: Remover código que usa a variável
-
-Atualizar backend para não depender mais de `MAIL_PASSWORD`.
+Remover referências à variável no código da aplicação.
 
 ---
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
-### Erro: "error: unable to recognize STDIN: no matches for kind \"SealedSecret\""
-
-**Problema:** Sealed Secrets Controller não instalado.
-
-**Solução:**
+### Secret não está sendo atualizado
 
 ```bash
-kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.2/controller.yaml
-
-# Verificar instalação
-kubectl get pods -n kube-system | grep sealed-secrets
-```
-
----
-
-### Erro: "cannot fetch certificate"
-
-**Problema:** Chave pública não encontrada ou controller offline.
-
-**Solução:**
-
-```bash
-# Buscar nova chave pública
-~/bin/kubeseal.exe --fetch-cert \
-  --controller-name=sealed-secrets-controller \
-  --controller-namespace=kube-system \
-  > .sealed-secrets/public-key.pem
-
-# Verificar controller
-kubectl get pods -n kube-system -l app.kubernetes.io/name=sealed-secrets
-```
-
----
-
-### Secret não está sendo atualizado no cluster
-
-**Problema:** Argo CD não sincronizou ou SealedSecret com problema.
-
-**Solução:**
-
-```bash
-# Verificar status do Argo CD
+# Verificar Argo CD
 kubectl get application devquote -n argocd
 
-# Forçar sincronização
+# Forçar sync
 kubectl patch application devquote -n argocd \
   --type merge \
-  -p '{"operation":{"initiatedBy":{"username":"admin"},"sync":{"revision":"main"}}}'
+  -p '{"operation":{"sync":{"revision":"main"}}}'
 
 # Verificar SealedSecret
 kubectl get sealedsecret -n devquote
 
-# Verificar Secret gerado
-kubectl get secret devquote-secrets -n devquote
-
 # Ver logs do controller
-kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets --tail=50
+kubectl logs -n kube-system -l app.kubernetes.io/name=sealed-secrets
 ```
-
----
 
 ### Pods não estão lendo a nova secret
 
-**Problema:** Pods foram criados antes da secret ser atualizada.
-
-**Solução:**
-
 ```bash
-# Reiniciar deployment
+# Reiniciar pods
 kubectl rollout restart deployment/backend -n devquote
-kubectl rollout restart deployment/frontend -n devquote
-
-# Verificar status
-kubectl rollout status deployment/backend -n devquote
 ```
 
----
-
-### Como verificar o valor de uma secret (descriptografado)?
-
-**⚠️ CUIDADO:** Secrets contêm dados sensíveis!
+### Ver valor de uma secret (⚠️ CUIDADO)
 
 ```bash
-# Ver todas as chaves
+# Listar chaves
 kubectl get secret devquote-secrets -n devquote -o jsonpath='{.data}' | grep -o '"[^"]*":'
 
-# Ver valor específico (base64 encoded)
+# Ver valor (base64)
 kubectl get secret devquote-secrets -n devquote -o jsonpath='{.data.POSTGRES_PASSWORD}'
 
-# Descriptografar valor (USE COM CUIDADO!)
+# Descriptografar
 kubectl get secret devquote-secrets -n devquote -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d
 ```
 
 ---
 
-## 🔒 Boas Práticas de Segurança
+## Estrutura de Arquivos
 
-### ✅ Faça
-
-- ✅ Sempre edite `k8s/secrets.yaml` localmente
-- ✅ Sempre re-criptografe após mudanças
-- ✅ Commit apenas `k8s/sealed-secrets.yaml`
-- ✅ Rotacione senhas periodicamente
-- ✅ Use senhas fortes (mínimo 16 caracteres)
-- ✅ Documente mudanças nas mensagens de commit
-
-### ❌ Não Faça
-
-- ❌ NUNCA commitar `k8s/secrets.yaml` (texto claro)
-- ❌ NUNCA compartilhar senhas em Slack/email
-- ❌ NUNCA usar senhas fracas em produção
-- ❌ NUNCA commitar chaves AWS, tokens, etc em código
-- ❌ NUNCA expor secrets em logs
-
----
-
-## 📚 Referências
-
-- **Sealed Secrets GitHub:** https://github.com/bitnami-labs/sealed-secrets
-- **Documentação Oficial:** https://sealed-secrets.netlify.app/
-- **Argo CD Docs:** https://argo-cd.readthedocs.io/
-
----
-
-## 🆘 Suporte
-
-Em caso de dúvidas ou problemas:
-
-1. Verificar logs do Sealed Secrets Controller
-2. Verificar status do Argo CD
-3. Verificar `.gitignore` (secrets.yaml deve estar listado)
-4. Verificar se a chave pública está correta
-
-**Comando útil para debug:**
-
-```bash
-# Ver todo o fluxo
-kubectl get application devquote -n argocd && \
-kubectl get sealedsecret -n devquote && \
-kubectl get secret devquote-secrets -n devquote && \
-kubectl get pods -n devquote
 ```
+devquote-infra/
+├── .sealed-secrets/
+│   └── public-key.pem         # Local only
+├── k8s/
+│   ├── secrets.yaml           # ⚠️ NUNCA commitar
+│   └── sealed-secrets.yaml    # ✅ Commitar (criptografado)
+└── .gitignore
+    └── k8s/secrets.yaml       # Protegido
+```
+
+---
+
+## Boas Práticas
+
+### ✅ Fazer
+
+- Sempre editar `secrets.yaml` localmente
+- Sempre re-criptografar após mudanças
+- Commit apenas `sealed-secrets.yaml`
+- Rotacionar senhas periodicamente
+- Usar senhas fortes (mínimo 16 caracteres)
+
+### ❌ Não Fazer
+
+- NUNCA commitar `secrets.yaml` (texto claro)
+- NUNCA compartilhar senhas em Slack/email
+- NUNCA usar senhas fracas
+- NUNCA expor secrets em logs
+
+---
+
+## Referências
+
+- [Sealed Secrets GitHub](https://github.com/bitnami-labs/sealed-secrets)
+- [Documentação Oficial](https://sealed-secrets.netlify.app/)

@@ -7,7 +7,7 @@ metadata:
     app: backend
     component: api
 spec:
-  replicas: 2
+  replicas: 3
   selector:
     matchLabels:
       app: backend

@@ -186,7 +186,7 @@ kubectl logs -f redis-0 -n devquote
 
 ## Documentação
 
-- [Architecture](./docs/architecture.md) - Visão geral da arquitetura
+- [Architecture](architecture.md) - Visão geral da arquitetura
 - [SECRETS.md](./SECRETS.md) - Gerenciamento de secrets
 
 ---

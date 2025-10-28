@@ -7,11 +7,12 @@ metadata:
     app: postgres
     component: database
 spec:
-  type: ClusterIP
+  type: NodePort
   ports:
   - port: 5432
     targetPort: 5432
     protocol: TCP
     name: postgres
+    nodePort: 30432
   selector:
     app: postgres

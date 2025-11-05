@@ -9,7 +9,7 @@
 
 ### Backend
 - Spring Boot 3.5.4 + Java 21
-- OAuth2 + JWT
+- JWT Authentication
 - Integração AWS S3
 - 2 réplicas (Alta Disponibilidade)
 
@@ -53,7 +53,6 @@ Traefik Ingress
 |------|---------|
 | `/api` | Backend |
 | `/actuator` | Backend (health/metrics) |
-| `/oauth2` | Backend (autenticação) |
 | `/grafana` | Grafana |
 | `/argocd` | Argo CD |
 | `/` | Frontend |
@@ -63,7 +62,7 @@ Traefik Ingress
 ## Segurança
 
 - HTTPS obrigatório (Let's Encrypt)
-- OAuth2 + JWT
+- JWT Authentication
 - Sealed Secrets (RSA 4096-bit)
 - Serviços internos não expostos (ClusterIP)
 - Resource limits por pod

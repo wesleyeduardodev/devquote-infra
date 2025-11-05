@@ -52,14 +52,6 @@ spec:
             name: backend-service
             port:
               number: 8080
-      # Backend OAuth2
-      - path: /oauth2
-        pathType: Prefix
-        backend:
-          service:
-            name: backend-service
-            port:
-              number: 8080
       # Frontend (default)
       - path: /
         pathType: Prefix
@@ -81,13 +73,6 @@ spec:
             port:
               number: 8080
       - path: /actuator
-        pathType: Prefix
-        backend:
-          service:
-            name: backend-service
-            port:
-              number: 8080
-      - path: /oauth2
         pathType: Prefix
         backend:
           service:

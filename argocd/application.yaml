@@ -3,11 +3,6 @@ kind: Application
 metadata:
   name: devquote
   namespace: argocd
-  labels:
-    app: devquote
-  # Finalizers garantem que resources sejam deletados quando a app for removida
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
 spec:
   # Projeto do Argo CD
   project: default
@@ -16,7 +11,9 @@ spec:
   source:
     repoURL: https://github.com/wesleyeduardodev/devquote-infra
     targetRevision: HEAD
-    path: overlays/production  # Usa overlay de produção com Kustomize
+    path: k8s
+    directory:
+      recurse: true
 
   # Destino: Cluster Kubernetes
   destination:
@@ -25,47 +22,14 @@ spec:
 
   # Políticas de sincronização
   syncPolicy:
-    # Sincronização automática
     automated:
-      # Permite que Argo CD delete resources que não existem mais no Git
-      prune: true
+      # IMPORTANTE: prune: false evita deleções acidentais de recursos
+      prune: false
       # Auto-correção: reverte mudanças manuais no cluster
       selfHeal: true
-      # Permite apps vazias
-      allowEmpty: false
 
-    # Opções adicionais de sync
     syncOptions:
-      # Cria namespace automaticamente se não existir
       - CreateNamespace=true
-      # Valida resources antes de aplicar
-      - Validate=true
-      # Aplica resources out-of-sync automaticamente
-      - PruneLast=true
-      # Respeita a ordem de criação dos resources
-      - ApplyOutOfSyncOnly=false
 
-    # Retry strategy em caso de falha
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-
-  # Ignorar diferenças em campos específicos
-  ignoreDifferences:
-    # Ignora replicas se alteradas manualmente (HPA pode mudar)
-    - group: apps
-      kind: Deployment
-      jsonPointers:
-        - /spec/replicas
-    # Ignora anotações do Kubernetes
-    - group: "*"
-      kind: "*"
-      managedFieldsManagers:
-        - kubectl
-        - kubectl-client-side-apply
-
-  # Configuração de revisão history
+  # Manter histórico de 10 revisões para rollback
   revisionHistoryLimit: 10

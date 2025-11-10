@@ -2,19 +2,20 @@
 
 > 🔐 **Secrets:** Ver [SECRETS.md](./SECRETS.md) para gerenciamento de credenciais
 
-Infraestrutura Kubernetes (K3s) para DevQuote com GitOps via Argo CD.
+Infraestrutura Kubernetes (K3s) para DevQuote com **GitOps via Argo CD**.
 
 ---
 
 ## Stack
 
 - **K3s** - Kubernetes leve
-- **Traefik** - Ingress Controller
+- **Traefik** - Ingress Controller + Load Balancer
 - **PostgreSQL 17** - Banco de dados
-- **Redis 7** - Cache
+- **Redis 7** - Cache distribuído
 - **Prometheus + Grafana** - Observabilidade
-- **Argo CD** - GitOps
+- **Argo CD** - GitOps (Continuous Delivery)
 - **Sealed Secrets** - Gerenciamento seguro de secrets
+- **cert-manager** - Certificados SSL/TLS (Let's Encrypt)
 
 ---
 
@@ -24,97 +25,144 @@ Infraestrutura Kubernetes (K3s) para DevQuote com GitOps via Argo CD.
 devquote-infra/
 ├── README.md
 ├── SECRETS.md                 # Guia de secrets
+├── argocd/
+│   └── application.yaml       # Argo CD Application (versionada)
 ├── k8s/
 │   ├── namespace.yaml
-│   ├── secrets.yaml           # ⚠️ Local only
 │   ├── sealed-secrets.yaml    # ✅ Encrypted (Git)
-│   ├── backend/
-│   ├── frontend/
-│   ├── database/
-│   ├── redis/
-│   ├── ingress/
-│   └── monitoring/
-└── docs/
-    └── architecture.md
+│   ├── argocd/                # Ingress Argo CD
+│   ├── backend/               # Deployment + Service
+│   ├── frontend/              # Deployment + Service
+│   ├── database/              # PostgreSQL (StatefulSet + PVC)
+│   ├── redis/                 # Redis (StatefulSet)
+│   ├── cert-manager/          # Let's Encrypt ClusterIssuer
+│   ├── ingress/               # Ingress principal (Traefik)
+│   └── monitoring/            # Prometheus + Grafana
+│       ├── grafana/
+│       └── prometheus/
+└── architecture.md            # Documentação técnica
 ```
 
 ---
 
-## Quick Start
+## 🚀 GitOps: Como Funciona o Deploy
 
-### 1. Configurar Secrets
+### **Fluxo Completo (Automatizado)**
+
+```
+1. Dev faz commit no devquote-backend ou devquote-frontend
+   ↓
+2. GitHub Actions detecta mudança automaticamente
+   ↓
+3. Build + Lint/Tests
+   ↓
+4. Docker build com tag SHA imutável (sha-XXXXXXX)
+   ↓
+5. Push para Docker Hub (3 tags: sha-XXX, latest, version)
+   ↓
+6. GitHub Actions clona devquote-infra
+   ↓
+7. Atualiza k8s/backend/deployment.yaml ou k8s/frontend/deployment.yaml
+   ↓
+8. Commit + Push para devquote-infra
+   ↓
+9. Argo CD detecta mudança no Git (auto-sync)
+   ↓
+10. Aplica rolling update no Kubernetes (zero downtime)
+   ↓
+11. Deploy completo ✅
+```
+
+**Você não precisa fazer NADA manualmente!** Apenas commitar código.
+
+### **Exemplo Prático**
 
 ```bash
-# Editar secrets localmente
-vim k8s/secrets.yaml
-
-# Criptografar
-~/bin/kubeseal.exe --format=yaml \
-  --cert=.sealed-secrets/public-key.pem \
-  < k8s/secrets.yaml \
-  > k8s/sealed-secrets.yaml
-
-# Commitar (apenas o criptografado)
-git add k8s/sealed-secrets.yaml
-git commit -m "Update secrets"
+# No projeto devquote-backend:
+git add .
+git commit -m "Fix bug no cálculo de faturamento"
 git push
-```
 
-### 2. Deploy Inicial
-
-```bash
-# Namespace + Secrets
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/sealed-secrets.yaml
-
-# Database + Redis
-kubectl apply -f k8s/database/
-kubectl apply -f k8s/redis/
-
-# Backend + Frontend
-kubectl apply -f k8s/backend/
-kubectl apply -f k8s/frontend/
-
-# Ingress
-kubectl apply -f k8s/ingress/
-
-# Monitoring (opcional)
-kubectl apply -f k8s/monitoring/
-```
-
-### 3. Verificar
-
-```bash
-kubectl get pods -n devquote
-kubectl get ingress -n devquote
+# Aguardar ~3 minutos:
+# ✅ GitHub Actions: Build + Docker push
+# ✅ Infra repo atualizado automaticamente
+# ✅ Argo CD aplica no cluster
+# ✅ Pod antigo → Pod novo (rolling update)
 ```
 
 ---
 
-## Atualizar Aplicação
+## 🔄 Rollback Via Argo CD UI
 
-### Via GitOps (Recomendado)
+### **Como Fazer Rollback**
 
-```bash
-# 1. Backend foi buildado e gerou nova imagem
-# 2. Argo CD detecta mudança automaticamente
-# 3. Rolling update sem downtime
-```
+1. Acesse: **https://devquote.com.br/argocd**
+2. Faça login (user: `admin`)
+3. Clique no app **devquote**
+4. Aba **"HISTORY AND ROLLBACK"**
+5. Veja todas as versões anteriores (até 10 versões)
+6. Selecione a versão desejada
+7. Clique **"ROLLBACK"**
+8. Confirme
+9. Argo CD reverte automaticamente ✅
 
-### Manual
-
-```bash
-kubectl rollout restart deployment/backend -n devquote
-```
+**O rollback é seguro:**
+- ✅ Reverte para tag SHA específica (imutável)
+- ✅ Rolling update sem downtime
+- ✅ Git é atualizado automaticamente
+- ✅ Histórico completo auditável
 
 ---
 
-## Comandos Úteis
+## 📦 Deploy Inicial (Primeira Vez)
+
+### 1. Criar Argo CD Application
 
 ```bash
-# Logs
+# Aplicar a Application do Argo CD (versionada em Git)
+kubectl apply -f argocd/application.yaml
+```
+
+Isso cria a Application `devquote` que gerencia todos os recursos em `k8s/`.
+
+### 2. Verificar Deploy
+
+```bash
+# Ver Application no Argo CD
+kubectl get application devquote -n argocd
+
+# Ver todos os recursos gerenciados
+kubectl get all -n devquote
+
+# Acessar UI
+https://devquote.com.br/argocd
+```
+
+**Pronto!** Argo CD sincroniza automaticamente tudo do Git.
+
+---
+
+## 🔧 Comandos Úteis
+
+### Logs
+
+```bash
+# Backend
 kubectl logs -f deployment/backend -n devquote
 
+# Frontend
+kubectl logs -f deployment/frontend -n devquote
+
+# PostgreSQL
+kubectl logs -f postgres-0 -n devquote
+
+# Redis
+kubectl logs -f redis-0 -n devquote
+```
+
+### Monitoramento
+
+```bash
 # Ver todos os pods
 kubectl get pods -n devquote
 
@@ -127,19 +175,39 @@ kubectl get svc -n devquote
 # Ver eventos recentes
 kubectl get events -n devquote --sort-by='.lastTimestamp'
 
-# Escalar
-kubectl scale deployment backend --replicas=3 -n devquote
-
-# Rollback
-kubectl rollout undo deployment/backend -n devquote
-
 # Ver uso de recursos
 kubectl top pods -n devquote
 ```
 
+### Argo CD
+
+```bash
+# Ver status da Application
+kubectl get application devquote -n argocd
+
+# Forçar sync manual (se necessário)
+kubectl -n argocd patch application devquote -p '{"operation":{"sync":{"revision":"HEAD"}}}' --type merge
+
+# Ver histórico de deploys
+kubectl get application devquote -n argocd -o jsonpath='{.status.history}'
+```
+
+### Database
+
+```bash
+# Conectar no PostgreSQL
+kubectl exec -it postgres-0 -n devquote -- psql -U devquote_user -d devquote
+
+# Backup manual
+kubectl exec -n devquote postgres-0 -- pg_dump -U devquote_user devquote > backup.sql
+
+# Verificar dados
+kubectl exec -it postgres-0 -n devquote -- psql -U devquote_user -d devquote -c "SELECT COUNT(*) FROM users;"
+```
+
 ---
 
-## Redis Cache
+## 📊 Redis Cache
 
 ### Verificar Chaves no Redis
 
@@ -171,7 +239,7 @@ kubectl logs -f redis-0 -n devquote
 
 ---
 
-## Recursos
+## 📈 Recursos Alocados
 
 | Componente | Réplicas | RAM | CPU |
 |------------|----------|-----|-----|
@@ -184,15 +252,26 @@ kubectl logs -f redis-0 -n devquote
 
 ---
 
-## Documentação
+## 🔗 Links Úteis
 
-- [Architecture](architecture.md) - Visão geral da arquitetura
-- [SECRETS.md](./SECRETS.md) - Gerenciamento de secrets
+- **Aplicação:** https://devquote.com.br
+- **Argo CD:** https://devquote.com.br/argocd
+- **Grafana:** https://devquote.com.br/grafana (user: `admin`, senha: `admin123`)
+- **API Docs:** https://devquote.com.br/swagger-ui
 
 ---
 
-## Links
+## 📚 Documentação Adicional
 
-- **Aplicação:** https://devquote.com.br
-- **Grafana:** https://devquote.com.br/grafana
-- **Argo CD:** https://devquote.com.br/argocd
+- [architecture.md](architecture.md) - Visão geral da arquitetura
+- [SECRETS.md](./SECRETS.md) - Gerenciamento de secrets e Sealed Secrets
+
+---
+
+## ⚠️ Observações Importantes
+
+- **NÃO faça kubectl apply manual** nos deployments - use GitOps via Argo CD
+- **NÃO altere recursos diretamente no cluster** - faça mudanças no Git
+- **Backup automático** do PostgreSQL roda diariamente às 02:00 (via cron)
+- **Certificado SSL** renovado automaticamente pelo cert-manager
+- **Rollback sempre via Argo CD UI** - nunca use kubectl rollout undo

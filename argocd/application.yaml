@@ -4,10 +4,7 @@ metadata:
   name: devquote
   namespace: argocd
 spec:
-  # Projeto do Argo CD
   project: default
-
-  # Fonte: Repositório de infraestrutura
   source:
     repoURL: https://github.com/wesleyeduardodev/devquote-infra
     targetRevision: HEAD
@@ -15,21 +12,16 @@ spec:
     directory:
       recurse: true
 
-  # Destino: Cluster Kubernetes
   destination:
     server: https://kubernetes.default.svc
     namespace: devquote
 
-  # Políticas de sincronização
   syncPolicy:
     automated:
-      # IMPORTANTE: prune: false evita deleções acidentais de recursos
       prune: false
-      # Auto-correção: reverte mudanças manuais no cluster
       selfHeal: true
 
     syncOptions:
       - CreateNamespace=true
 
-  # Manter histórico de 10 revisões para rollback
   revisionHistoryLimit: 10

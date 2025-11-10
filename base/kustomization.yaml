@@ -4,10 +4,6 @@ kind: Kustomization
 namespace: devquote
 
 resources:
-  # Namespace e Secrets
-  - ../k8s/namespace.yaml
-  - ../k8s/sealed-secrets.yaml
-
   # Backend
   - backend/deployment.yaml
   - backend/service.yaml
@@ -15,15 +11,3 @@ resources:
   # Frontend
   - frontend/deployment.yaml
   - frontend/service.yaml
-
-  # Database
-  - ../k8s/database/
-
-  # Redis
-  - ../k8s/redis/
-
-  # Ingress
-  - ../k8s/ingress/
-
-  # Monitoring (opcional)
-  - ../k8s/monitoring/

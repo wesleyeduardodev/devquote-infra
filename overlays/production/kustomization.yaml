@@ -3,7 +3,7 @@ kind: Kustomization
 
 namespace: devquote
 
-bases:
+resources:
   - ../../base
 
 # Tags SHA das imagens (atualizadas automaticamente pelo CI/CD)

@@ -4,7 +4,23 @@ kind: Kustomization
 namespace: devquote
 
 resources:
+  # Base (Backend e Frontend com tags gerenciadas)
   - ../../base
+
+  # Namespace e Secrets
+  - ../../k8s/namespace.yaml
+  - ../../k8s/sealed-secrets.yaml
+
+  # Database
+  - ../../k8s/database/pvc.yaml
+  - ../../k8s/database/service.yaml
+  - ../../k8s/database/statefulset.yaml
+
+  # Redis
+  - ../../k8s/redis/redis-statefulset.yaml
+
+  # Ingress
+  - ../../k8s/ingress/ingress.yaml
 
 # Tags SHA das imagens (atualizadas automaticamente pelo CI/CD)
 images:
@@ -12,10 +28,3 @@ images:
     newTag: latest  # Será substituído por sha-XXXXXXX pelo CI/CD
   - name: wesleyeduardodev/devquote-frontend
     newTag: latest  # Será substituído por sha-XXXXXXX pelo CI/CD
-
-# Configurações específicas de produção
-replicas:
-  - name: backend
-    count: 1
-  - name: frontend
-    count: 1

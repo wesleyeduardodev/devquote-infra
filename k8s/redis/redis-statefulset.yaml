@@ -49,7 +49,6 @@ spec:
           volumeMounts:
             - name: redis-data
               mountPath: /data
-          # Health checks
           livenessProbe:
             tcpSocket:
               port: 6379

@@ -12,14 +12,11 @@ data:
       scrape_interval: 15s
       evaluation_interval: 15s
 
-    scrape_configs:
-      # Backend Metrics
+    scrape_configs:      
       - job_name: 'devquote-backend'
         metrics_path: '/actuator/prometheus'
         static_configs:
           - targets: ['backend-service:8080']
-
-      # Kubernetes Pods
       - job_name: 'kubernetes-pods'
         kubernetes_sd_configs:
           - role: pod

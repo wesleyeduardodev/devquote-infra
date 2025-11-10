@@ -8,7 +8,7 @@
 - 1 réplica
 
 ### Backend
-- Spring Boot 3.5.4 + Java 21
+- Spring Boot 3.5.4 + Java 17
 - JWT Authentication
 - Integração AWS S3
 - 2 réplicas (Alta Disponibilidade)

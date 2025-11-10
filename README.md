@@ -168,13 +168,13 @@ kubectl logs -n devquote job/postgres-backup-XXXXXXXX
 
 ```bash
 # 1. Baixar do S3
-aws s3 cp s3://devquote-storage/backups/postgresql/devquote_backup_20251110_030005.sql.gz .
+aws s3 cp s3://devquote-storage/backups/postgresql/devquote-backup-postgres-10-11-2025-03-00-05.sql.gz .
 
 # 2. Descompactar
-gunzip devquote_backup_20251110_030005.sql.gz
+gunzip devquote-backup-postgres-10-11-2025-03-00-05.sql.gz
 
 # 3. Restaurar no PostgreSQL
-kubectl exec -it postgres-0 -n devquote -- psql -U devquote_user -d devquote < devquote_backup_20251110_030005.sql
+kubectl exec -it postgres-0 -n devquote -- psql -U devquote_user -d devquote < devquote-backup-postgres-10-11-2025-03-00-05.sql
 ```
 
 📚 **Documentação completa:** [k8s/backup/README.md](k8s/backup/README.md)

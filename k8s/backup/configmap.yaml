@@ -15,8 +15,8 @@ data:
 
     # Variáveis
     BACKUP_DIR="/tmp/backups"
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_FILE="devquote_backup_${TIMESTAMP}.sql.gz"
+    TIMESTAMP=$(date +%d-%m-%Y-%H-%M-%S)
+    BACKUP_FILE="devquote-backup-postgres-${TIMESTAMP}.sql.gz"
     S3_BUCKET="${AWS_S3_BUCKET_NAME}"
     S3_PATH="s3://${S3_BUCKET}/backups/postgresql/${BACKUP_FILE}"
     RETENTION_DAYS=7
@@ -57,13 +57,16 @@ data:
 
     # Limpar backups antigos no S3 (mantém últimos 7 dias)
     echo "→ Cleaning old backups (keeping last ${RETENTION_DAYS} days)..."
-    CUTOFF_DATE=$(python3 -c "import datetime; print((datetime.datetime.now() - datetime.timedelta(days=${RETENTION_DAYS})).strftime('%Y%m%d'))")
+    CUTOFF_DATE=$(python3 -c "import datetime; print((datetime.datetime.now() - datetime.timedelta(days=${RETENTION_DAYS})).strftime('%d-%m-%Y'))")
 
     aws s3 ls "s3://${S3_BUCKET}/backups/postgresql/" | while read -r line; do
       FILE_NAME=$(echo $line | awk '{print $4}')
-      FILE_DATE=$(echo "$FILE_NAME" | cut -d'_' -f3)
 
-      if [ ! -z "$FILE_DATE" ] && [ "$FILE_DATE" -lt "$CUTOFF_DATE" ]; then
+      # Extrair data do nome: devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql.gz
+      # Extrai DD-MM-YYYY (posições 4, 5, 6)
+      FILE_DATE=$(echo "$FILE_NAME" | cut -d'-' -f4-6)
+
+      if [ ! -z "$FILE_DATE" ] && [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
         echo "  Deleting old backup: ${FILE_NAME}"
         aws s3 rm "s3://${S3_BUCKET}/backups/postgresql/${FILE_NAME}"
       fi

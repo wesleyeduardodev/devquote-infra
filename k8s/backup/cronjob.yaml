@@ -1,0 +1,107 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: postgres-backup
+  namespace: devquote
+spec:
+  # Executar todos os dias às 3h AM (horário UTC)
+  # Ajuste conforme seu timezone: 3h AM = "0 3 * * *"
+  schedule: "0 3 * * *"
+
+  # Manter histórico dos últimos 3 backups bem-sucedidos
+  successfulJobsHistoryLimit: 3
+
+  # Manter histórico dos últimos 1 backup com falha
+  failedJobsHistoryLimit: 1
+
+  # Não permitir execuções concorrentes
+  concurrencyPolicy: Forbid
+
+  jobTemplate:
+    spec:
+      # Job expira após 1 hora (3600 segundos)
+      ttlSecondsAfterFinished: 3600
+
+      # Tentar até 2 vezes em caso de falha
+      backoffLimit: 2
+
+      template:
+        metadata:
+          labels:
+            app: postgres-backup
+        spec:
+          restartPolicy: OnFailure
+
+          containers:
+          - name: backup
+            # Imagem oficial do PostgreSQL com AWS CLI
+            image: postgres:17-alpine
+
+            command:
+            - /bin/sh
+            - -c
+            - |
+              # Instalar AWS CLI
+              apk add --no-cache aws-cli bash
+
+              # Executar script de backup
+              /scripts/backup.sh
+
+            env:
+            # Credenciais do PostgreSQL
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: POSTGRES_PASSWORD
+
+            # Credenciais AWS S3
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: AWS_SECRET_ACCESS_KEY
+            - name: AWS_S3_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: AWS_S3_REGION
+            - name: AWS_S3_BUCKET_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: AWS_S3_BUCKET_NAME
+
+            # Montar script de backup
+            volumeMounts:
+            - name: backup-script
+              mountPath: /scripts
+
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "250m"
+              limits:
+                memory: "512Mi"
+                cpu: "500m"
+
+          volumes:
+          - name: backup-script
+            configMap:
+              name: postgres-backup-script
+              defaultMode: 0755

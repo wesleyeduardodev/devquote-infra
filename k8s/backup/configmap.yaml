@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-backup-script
+  namespace: devquote
+data:
+  backup.sh: |
+    #!/bin/bash
+    set -e
+
+    echo "=========================================="
+    echo "DevQuote - PostgreSQL Backup to S3"
+    echo "Started at: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "=========================================="
+
+    # Variáveis
+    BACKUP_DIR="/tmp/backups"
+    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+    BACKUP_FILE="devquote_backup_${TIMESTAMP}.sql.gz"
+    S3_BUCKET="${AWS_S3_BUCKET_NAME}"
+    S3_PATH="s3://${S3_BUCKET}/backups/postgresql/${BACKUP_FILE}"
+    RETENTION_DAYS=7
+
+    # Criar diretório temporário
+    mkdir -p ${BACKUP_DIR}
+    cd ${BACKUP_DIR}
+
+    echo "→ Creating PostgreSQL dump..."
+    PGPASSWORD="${POSTGRES_PASSWORD}" pg_dump \
+      -h postgres-service \
+      -p 5432 \
+      -U "${POSTGRES_USER}" \
+      -d "${POSTGRES_DB}" \
+      --no-owner \
+      --no-acl \
+      | gzip > "${BACKUP_FILE}"
+
+    BACKUP_SIZE=$(du -h "${BACKUP_FILE}" | cut -f1)
+    echo "✓ Backup created: ${BACKUP_FILE} (${BACKUP_SIZE})"
+
+    # Configurar AWS CLI
+    echo "→ Configuring AWS CLI..."
+    export AWS_ACCESS_KEY_ID="${AWS_ACCESS_KEY_ID}"
+    export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY}"
+    export AWS_DEFAULT_REGION="${AWS_S3_REGION}"
+
+    # Upload para S3
+    echo "→ Uploading to S3: ${S3_PATH}"
+    aws s3 cp "${BACKUP_FILE}" "${S3_PATH}" --storage-class STANDARD_IA
+
+    if [ $? -eq 0 ]; then
+      echo "✓ Backup uploaded successfully to S3"
+    else
+      echo "✗ ERROR: Failed to upload backup to S3"
+      exit 1
+    fi
+
+    # Limpar backups antigos no S3 (mantém últimos 7 dias)
+    echo "→ Cleaning old backups (keeping last ${RETENTION_DAYS} days)..."
+    CUTOFF_DATE=$(python3 -c "import datetime; print((datetime.datetime.now() - datetime.timedelta(days=${RETENTION_DAYS})).strftime('%Y%m%d'))")
+
+    aws s3 ls "s3://${S3_BUCKET}/backups/postgresql/" | while read -r line; do
+      FILE_NAME=$(echo $line | awk '{print $4}')
+      FILE_DATE=$(echo "$FILE_NAME" | cut -d'_' -f3)
+
+      if [ ! -z "$FILE_DATE" ] && [ "$FILE_DATE" -lt "$CUTOFF_DATE" ]; then
+        echo "  Deleting old backup: ${FILE_NAME}"
+        aws s3 rm "s3://${S3_BUCKET}/backups/postgresql/${FILE_NAME}"
+      fi
+    done
+
+    # Limpar arquivo local
+    rm -f "${BACKUP_FILE}"
+    echo "✓ Local backup file removed"
+
+    echo "=========================================="
+    echo "Backup completed successfully!"
+    echo "Finished at: $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "=========================================="

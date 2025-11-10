@@ -87,6 +87,28 @@ spec:
                   name: devquote-secrets
                   key: AWS_S3_BUCKET_NAME
 
+            # Credenciais SMTP (para notificações de erro)
+            - name: MAIL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: MAIL_HOST
+            - name: MAIL_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: MAIL_PORT
+            - name: MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: MAIL_USERNAME
+            - name: MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devquote-secrets
+                  key: MAIL_PASSWORD
+
             # Montar script de backup
             volumeMounts:
             - name: backup-script

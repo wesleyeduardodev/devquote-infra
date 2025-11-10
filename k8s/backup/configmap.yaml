@@ -8,6 +8,70 @@ data:
     #!/bin/bash
     set -e
 
+    # Função para enviar email de erro
+    send_error_email() {
+      ERROR_MESSAGE="$1"
+
+      python3 <<EOF
+import smtplib
+import os
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from datetime import datetime
+
+try:
+    # Configurações SMTP
+    smtp_server = os.environ.get('MAIL_HOST', 'smtp.gmail.com')
+    smtp_port = int(os.environ.get('MAIL_PORT', '587'))
+    smtp_user = os.environ.get('MAIL_USERNAME', '')
+    smtp_pass = os.environ.get('MAIL_PASSWORD', '')
+    from_email = "DevQuote Backup <noreply@devquote.com.br>"
+    to_email = "wesleyeduardo.dev@gmail.com"
+
+    # Criar mensagem
+    msg = MIMEMultipart()
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg['Subject'] = "[DevQuote] ❌ FALHA NO BACKUP PostgreSQL"
+
+    body = f"""⚠️ FALHA NO BACKUP DO BANCO DE DADOS
+
+🕐 Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC
+📦 Componente: PostgreSQL Backup CronJob
+🔴 Status: ERRO
+
+💬 Mensagem de Erro:
+{'''$ERROR_MESSAGE'''}
+
+🔧 Ação Necessária:
+1. Verificar logs: kubectl logs -n devquote -l app=postgres-backup
+2. Verificar credenciais AWS S3
+3. Verificar conectividade com PostgreSQL
+
+🔗 Dashboard: https://devquote.com.br/argocd
+
+---
+DevQuote - Sistema de Gestão de Projetos"""
+
+    msg.attach(MIMEText(body, 'plain'))
+
+    # Enviar email
+    server = smtplib.SMTP(smtp_server, smtp_port)
+    server.starttls()
+    server.login(smtp_user, smtp_pass)
+    text = msg.as_string()
+    server.sendmail(from_email, to_email, text)
+    server.quit()
+
+    print("✓ Email de erro enviado com sucesso")
+except Exception as e:
+    print(f"✗ Erro ao enviar email: {e}")
+EOF
+    }
+
+    # Trap para capturar erros e enviar email
+    trap 'send_error_email "Erro na linha $LINENO: $BASH_COMMAND"' ERR
+
     echo "=========================================="
     echo "DevQuote - PostgreSQL Backup to S3"
     echo "Started at: $(date '+%Y-%m-%d %H:%M:%S')"

@@ -17,11 +17,9 @@ spec:
     - www.devquote.com.br
     secretName: devquote-tls
   rules:
-  # Frontend e Backend
   - host: devquote.com.br
     http:
       paths:
-      # Backend API
       - path: /api
         pathType: Prefix
         backend:
@@ -29,7 +27,6 @@ spec:
             name: backend-service
             port:
               number: 8080
-      # Backend Actuator
       - path: /actuator
         pathType: Prefix
         backend:
@@ -37,7 +34,6 @@ spec:
             name: backend-service
             port:
               number: 8080
-      # Swagger UI
       - path: /swagger-ui
         pathType: Prefix
         backend:
@@ -52,7 +48,6 @@ spec:
             name: backend-service
             port:
               number: 8080
-      # Frontend (default)
       - path: /
         pathType: Prefix
         backend:
@@ -61,7 +56,6 @@ spec:
             port:
               number: 80
 
-  # WWW redirect
   - host: www.devquote.com.br
     http:
       paths:

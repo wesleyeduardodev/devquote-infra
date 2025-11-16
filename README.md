@@ -307,6 +307,35 @@ kubectl top pods -n devquote
 
 ---
 
+## 🔄 Migração de Configurações (2025-01-16)
+
+### **Mudança Arquitetural Importante**
+
+A maioria das variáveis de configuração **migrou do Kubernetes para o banco de dados** (tabela `system_parameter`).
+
+**Apenas 10 variáveis permanecem no Kubernetes:**
+
+```yaml
+# PostgreSQL (6) - necessárias para o backend conectar ao banco
+POSTGRES_DB, POSTGRES_USER, POSTGRES_PASSWORD
+SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD
+
+# AWS S3 (4) - necessárias para o CronJob de backup funcionar
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_S3_BUCKET_NAME, AWS_S3_REGION
+```
+
+**Todas as demais configurações** (JWT, Email, CORS, multipart, etc) **agora estão no banco**.
+
+**Vantagens:**
+- ✅ Configurações alteráveis via interface web (sem redeploy)
+- ✅ Auditoria de mudanças
+- ✅ Valores sensíveis criptografados no banco
+- ✅ Menos secrets no Kubernetes
+
+**Detalhes:** Ver [SECRETS.md](./SECRETS.md#-mudança-arquitetural-2025-01-16)
+
+---
+
 ## 📚 Documentação Complementar
 
 - **Secrets:** [SECRETS.md](./SECRETS.md) - Como gerenciar secrets e Sealed Secrets
@@ -315,5 +344,5 @@ kubectl top pods -n devquote
 
 ---
 
-**Última atualização:** 2025-11-10
-**Versão:** GitOps 2.0 (Deploy + Rollback automatizado)
+**Última atualização:** 2025-01-16
+**Versão:** GitOps 2.0 (Deploy + Rollback automatizado) + Config em banco

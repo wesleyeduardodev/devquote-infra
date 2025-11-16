@@ -18,8 +18,68 @@ Kubernetes Secret
 Pods (variáveis de ambiente)
 ```
 
-**⚠️ NUNCA commitar `k8s/secrets.yaml` (texto claro)**  
+**⚠️ NUNCA commitar `k8s/secrets.yaml` (texto claro)**
 **✅ SEMPRE commitar `k8s/sealed-secrets.yaml` (criptografado)**
+
+---
+
+## 🔄 Mudança Arquitetural (2025-01-16)
+
+**IMPORTANTE:** A maioria das variáveis de configuração **migrou do Kubernetes para o banco de dados** (tabela `system_parameter`).
+
+### Variáveis que PERMANECEM no Kubernetes (10 variáveis)
+
+Apenas **configurações de infraestrutura** que o backend precisa **antes** de acessar o banco:
+
+```yaml
+# PostgreSQL (6 variáveis)
+POSTGRES_DB
+POSTGRES_USER
+POSTGRES_PASSWORD
+SPRING_DATASOURCE_URL
+SPRING_DATASOURCE_USERNAME
+SPRING_DATASOURCE_PASSWORD
+
+# AWS S3 para Backup Automático (4 variáveis)
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_S3_BUCKET_NAME
+AWS_S3_REGION
+```
+
+**Motivo AWS no Kubernetes:**
+- O CronJob de backup PostgreSQL roda **fora do contexto do backend**
+- Não tem acesso ao banco para buscar credenciais
+- Necessita das credenciais AWS para enviar backups ao S3
+
+### Variáveis que MIGRARAM para o Banco
+
+Todas as configurações da **aplicação** agora estão em `system_parameter`:
+
+```
+APP_JWTSECRET (criptografada)
+DEVQUOTE_CORS_ALLOWED_ORIGINS
+DEVQUOTE_EMAIL_ENABLED
+DEVQUOTE_EMAIL_FROM
+MAIL_HOST
+MAIL_PORT
+MAIL_USERNAME
+MAIL_PASSWORD (criptografada)
+MAIL_SMTP_AUTH
+MAIL_SMTP_STARTTLS_ENABLE
+MAIL_SMTP_SSL_TRUST
+APP_JWTEXPIRATIONMS
+SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE
+SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE
+SERVER_ERROR_INCLUDE_MESSAGE
+... e outras
+```
+
+**Vantagens da migração:**
+- ✅ Configurações alteráveis via interface web (sem redeploy)
+- ✅ Auditoria de mudanças
+- ✅ Valores criptografados no banco (campos sensíveis)
+- ✅ Menos secrets no Kubernetes
 
 ---
 

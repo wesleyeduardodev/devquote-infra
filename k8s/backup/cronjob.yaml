@@ -4,27 +4,14 @@ metadata:
   name: postgres-backup
   namespace: devquote
 spec:
-  # Executar todos os dias às 3h AM (horário UTC)
-  # Ajuste conforme seu timezone: 3h AM = "0 3 * * *"
   schedule: "0 3 * * *"
-
-  # Manter histórico dos últimos 3 backups bem-sucedidos
   successfulJobsHistoryLimit: 3
-
-  # Manter histórico dos últimos 1 backup com falha
   failedJobsHistoryLimit: 1
-
-  # Não permitir execuções concorrentes
   concurrencyPolicy: Forbid
-
   jobTemplate:
     spec:
-      # Job expira após 1 hora (3600 segundos)
       ttlSecondsAfterFinished: 3600
-
-      # Tentar até 2 vezes em caso de falha
       backoffLimit: 2
-
       template:
         metadata:
           labels:
@@ -34,9 +21,7 @@ spec:
 
           containers:
           - name: backup
-            # Imagem oficial do PostgreSQL com AWS CLI
             image: postgres:17-alpine
-
             command:
             - /bin/sh
             - -c
@@ -48,7 +33,6 @@ spec:
               /scripts/backup.sh
 
             env:
-            # Credenciais do PostgreSQL
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
@@ -64,8 +48,6 @@ spec:
                 secretKeyRef:
                   name: devquote-secrets
                   key: POSTGRES_PASSWORD
-
-            # Credenciais AWS S3
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
@@ -86,12 +68,9 @@ spec:
                 secretKeyRef:
                   name: devquote-secrets
                   key: AWS_S3_BUCKET_NAME
-
-            # Montar script de backup
             volumeMounts:
             - name: backup-script
               mountPath: /scripts
-
             resources:
               requests:
                 memory: "256Mi"

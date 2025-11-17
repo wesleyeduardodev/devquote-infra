@@ -15,6 +15,7 @@ spec:
         app: promtail
     spec:
       serviceAccountName: promtail
+      automountServiceAccountToken: true
       containers:
       - name: promtail
         image: grafana/promtail:3.0.0

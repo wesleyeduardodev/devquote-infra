@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: promtail-token
+  namespace: devquote
+  annotations:
+    kubernetes.io/service-account.name: promtail
+type: kubernetes.io/service-account-token

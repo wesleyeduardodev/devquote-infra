@@ -18,7 +18,7 @@ spec:
       automountServiceAccountToken: true
       containers:
       - name: promtail
-        image: grafana/promtail:3.0.0
+        image: grafana/promtail:2.9.10
         imagePullPolicy: IfNotPresent
         args:
           - -config.file=/etc/promtail/promtail.yaml

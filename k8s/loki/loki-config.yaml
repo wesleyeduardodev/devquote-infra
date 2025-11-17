@@ -23,22 +23,23 @@ data:
         kvstore:
           store: inmemory
 
-    # Schema config para Loki 3.x
+    # Schema config para Loki 2.9
     schema_config:
       configs:
         - from: 2024-01-01
-          store: tsdb
+          store: boltdb-shipper
           object_store: filesystem
-          schema: v13
+          schema: v11
           index:
             prefix: index_
             period: 24h
 
-    # Storage config para Loki 3.x
+    # Storage config para Loki 2.9
     storage_config:
-      tsdb_shipper:
-        active_index_directory: /loki/tsdb-index
-        cache_location: /loki/tsdb-cache
+      boltdb_shipper:
+        active_index_directory: /loki/index
+        cache_location: /loki/index_cache
+        shared_store: filesystem
       filesystem:
         directory: /loki/chunks
 
@@ -54,14 +55,14 @@ data:
       max_global_streams_per_user: 0
       retention_period: 360h
 
-    # Compactor (removido shared_store)
+    # Compactor para Loki 2.9
     compactor:
       working_directory: /loki/compactor
+      shared_store: filesystem
       compaction_interval: 10m
       retention_enabled: true
       retention_delete_delay: 2h
       retention_delete_worker_count: 150
-      delete_request_store: filesystem
 
     # Query range
     query_range:

@@ -27,32 +27,29 @@ Pods (variáveis de ambiente)
 
 **IMPORTANTE:** A maioria das variáveis de configuração **migrou do Kubernetes para o banco de dados** (tabela `system_parameter`).
 
-### Variáveis que PERMANECEM no Kubernetes (10 variáveis)
+### Variáveis que PERMANECEM no Kubernetes (7 variáveis)
 
 Apenas **configurações de infraestrutura** que o backend precisa **antes** de acessar o banco:
 
 ```yaml
 # Database PostgreSQL (3 variáveis)
+# Usado por: Container PostgreSQL, Backend Spring Boot, CronJob de Backup
 POSTGRES_DB: devquote
 POSTGRES_USER: devquote_user
 POSTGRES_PASSWORD: <senha>
 
-# Spring DataSource (3 variáveis)
-SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-service:5432/devquote?sslmode=disable
-SPRING_DATASOURCE_USERNAME: devquote_user
-SPRING_DATASOURCE_PASSWORD: <senha>
-
 # AWS S3 para Backup Automático PostgreSQL (4 variáveis)
+# Usado por: CronJob de Backup
 AWS_ACCESS_KEY_ID: AKIA...
 AWS_SECRET_ACCESS_KEY: <secret-key>
 AWS_S3_BUCKET_NAME: devquote-storage
 AWS_S3_REGION: us-east-1
 ```
 
-**Motivo AWS no Kubernetes:**
-- O CronJob de backup PostgreSQL roda **fora do contexto do backend**
-- Não tem acesso ao banco para buscar credenciais
-- Necessita das credenciais AWS para enviar backups ao S3
+**Observações:**
+- **POSTGRES_***: Usado pelo container PostgreSQL (inicialização), Backend (conexão via application.yml) e CronJob de Backup
+- **AWS S3**: Usado exclusivamente pelo CronJob de backup (roda fora do contexto do backend)
+- **Variáveis removidas**: `SPRING_DATASOURCE_*` (redundantes, backend agora usa `POSTGRES_*` diretamente)
 
 ### Variáveis que MIGRARAM para o Banco
 

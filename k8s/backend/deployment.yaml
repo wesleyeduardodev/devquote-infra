@@ -32,6 +32,10 @@ spec:
         - secretRef:
             name: devquote-secrets
         env:
+        - name: POSTGRES_HOST
+          value: "postgres-service"
+        - name: POSTGRES_PORT
+          value: "5432"
         - name: REDIS_HOST
           value: "redis.devquote.svc.cluster.local"
         - name: REDIS_PORT

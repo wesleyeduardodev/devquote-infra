@@ -33,6 +33,8 @@ spec:
         volumeMounts:
         - name: storage
           mountPath: /var/lib/grafana
+        - name: datasources
+          mountPath: /etc/grafana/provisioning/datasources
         resources:
           requests:
             memory: "128Mi"
@@ -44,3 +46,6 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: grafana-pvc
+      - name: datasources
+        configMap:
+          name: grafana-loki-datasource

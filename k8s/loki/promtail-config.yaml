@@ -8,7 +8,6 @@ data:
     server:
       http_listen_port: 9080
       grpc_listen_port: 0
-      log_level: debug
 
     positions:
       filename: /tmp/positions.yaml
@@ -17,70 +16,43 @@ data:
       - url: http://loki:3100/loki/api/v1/push
 
     scrape_configs:
-      # Logs de todos os pods do namespace devquote
-      - job_name: kubernetes-pods
-        kubernetes_sd_configs:
-          - role: pod
-            namespaces:
-              names:
-                - devquote
+    - job_name: kubernetes-pods
+      kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+          - devquote
 
-        relabel_configs:
-          # Drop pods sem containers
-          - source_labels: [__meta_kubernetes_pod_container_name]
-            action: drop
-            regex: ^$
+      relabel_configs:
+      - source_labels:
+        - __meta_kubernetes_pod_node_name
+        target_label: __host__
 
-          # Adiciona namespace
-          - source_labels: [__meta_kubernetes_namespace]
-            target_label: namespace
+      - action: labelmap
+        regex: __meta_kubernetes_pod_label_(.+)
 
-          # Adiciona nome do pod
-          - source_labels: [__meta_kubernetes_pod_name]
-            target_label: pod
+      - action: replace
+        replacement: $1
+        separator: /
+        source_labels:
+        - __meta_kubernetes_namespace
+        target_label: namespace
 
-          # Adiciona nome do container
-          - source_labels: [__meta_kubernetes_pod_container_name]
-            target_label: container
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_name
+        target_label: pod
 
-          # Adiciona label "app" do pod
-          - source_labels: [__meta_kubernetes_pod_label_app]
-            target_label: app
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_pod_container_name
+        target_label: container
 
-          # Adiciona label "component" do pod
-          - source_labels: [__meta_kubernetes_pod_label_component]
-            target_label: component
-
-          # Adiciona node name
-          - source_labels: [__meta_kubernetes_pod_node_name]
-            target_label: node
-
-          # Path dos logs
-          - source_labels:
-            - __meta_kubernetes_pod_namespace
-            - __meta_kubernetes_pod_name
-            - __meta_kubernetes_pod_uid
-            - __meta_kubernetes_pod_container_name
-            target_label: __path__
-            separator: /
-            replacement: /var/log/pods/$1_$2_$3/$4/*.log
-
-        pipeline_stages:
-          # Extrai timestamp do log
-          - docker: {}
-
-          # Adiciona labels dinâmicos baseados no conteúdo do log
-          - match:
-              selector: '{app="backend"}'
-              stages:
-                # Extrai level (INFO, ERROR, DEBUG, WARN)
-                - regex:
-                    expression: '.*\s+(?P<level>INFO|ERROR|DEBUG|WARN|TRACE)\s+.*'
-                - labels:
-                    level:
-
-                # Extrai classe Java
-                - regex:
-                    expression: '.*\]\s+(?P<class>[\w\.]+)\s+:.*'
-                - labels:
-                    class:
+      - action: replace
+        source_labels:
+        - __meta_kubernetes_namespace
+        - __meta_kubernetes_pod_name
+        - __meta_kubernetes_pod_container_name
+        target_label: __path__
+        separator: /
+        replacement: /var/log/pods/$1_$2_*/$3/*.log

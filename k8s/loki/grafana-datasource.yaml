@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-loki-datasource
+  namespace: devquote
+  labels:
+    grafana_datasource: "1"
+data:
+  loki-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Loki
+        type: loki
+        access: proxy
+        url: http://loki:3100
+        isDefault: false
+        editable: true
+        jsonData:
+          maxLines: 1000
+          derivedFields:
+            # Extrai traceId dos logs para correlação
+            - datasourceUid: tempo
+              matcherRegex: "traceId[=:]\\s*([\\w-]+)"
+              name: TraceID
+              url: "$${__value.raw}"

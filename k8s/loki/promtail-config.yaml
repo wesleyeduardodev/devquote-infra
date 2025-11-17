@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: devquote
+data:
+  promtail.yaml: |
+    server:
+      http_listen_port: 9080
+      grpc_listen_port: 0
+      log_level: info
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki:3100/loki/api/v1/push
+        tenant_id: devquote
+
+    scrape_configs:
+      # Logs de todos os pods do namespace devquote
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - devquote
+
+        relabel_configs:
+          # Adiciona namespace
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+
+          # Adiciona nome do pod
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+
+          # Adiciona nome do container
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+
+          # Adiciona label "app" do pod
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+
+          # Adiciona label "component" do pod
+          - source_labels: [__meta_kubernetes_pod_label_component]
+            target_label: component
+
+          # Adiciona node name
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            target_label: node
+
+          # Path dos logs
+          - source_labels: [__meta_kubernetes_pod_uid, __meta_kubernetes_pod_container_name]
+            target_label: __path__
+            separator: /
+            replacement: /var/log/pods/*$1/*.log
+
+        pipeline_stages:
+          # Extrai timestamp do log
+          - docker: {}
+
+          # Adiciona labels dinâmicos baseados no conteúdo do log
+          - match:
+              selector: '{app="backend"}'
+              stages:
+                # Extrai level (INFO, ERROR, DEBUG, WARN)
+                - regex:
+                    expression: '.*\s+(?P<level>INFO|ERROR|DEBUG|WARN|TRACE)\s+.*'
+                - labels:
+                    level:
+
+                # Extrai classe Java
+                - regex:
+                    expression: '.*\]\s+(?P<class>[\w\.]+)\s+:.*'
+                - labels:
+                    class:

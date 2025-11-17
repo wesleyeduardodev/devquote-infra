@@ -32,19 +32,21 @@ Pods (variáveis de ambiente)
 Apenas **configurações de infraestrutura** que o backend precisa **antes** de acessar o banco:
 
 ```yaml
-# PostgreSQL (6 variáveis)
-POSTGRES_DB
-POSTGRES_USER
-POSTGRES_PASSWORD
-SPRING_DATASOURCE_URL
-SPRING_DATASOURCE_USERNAME
-SPRING_DATASOURCE_PASSWORD
+# Database PostgreSQL (3 variáveis)
+POSTGRES_DB: devquote
+POSTGRES_USER: devquote_user
+POSTGRES_PASSWORD: <senha>
 
-# AWS S3 para Backup Automático (4 variáveis)
-AWS_ACCESS_KEY_ID
-AWS_SECRET_ACCESS_KEY
-AWS_S3_BUCKET_NAME
-AWS_S3_REGION
+# Spring DataSource (3 variáveis)
+SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-service:5432/devquote?sslmode=disable
+SPRING_DATASOURCE_USERNAME: devquote_user
+SPRING_DATASOURCE_PASSWORD: <senha>
+
+# AWS S3 para Backup Automático PostgreSQL (4 variáveis)
+AWS_ACCESS_KEY_ID: AKIA...
+AWS_SECRET_ACCESS_KEY: <secret-key>
+AWS_S3_BUCKET_NAME: devquote-storage
+AWS_S3_REGION: us-east-1
 ```
 
 **Motivo AWS no Kubernetes:**
@@ -231,6 +233,76 @@ devquote-infra/
 - NUNCA compartilhar senhas em Slack/email
 - NUNCA usar senhas fracas
 - NUNCA expor secrets em logs
+
+---
+
+## 💾 Backup Manual do PostgreSQL
+
+### Criar Backup Manual e Enviar para S3
+
+Quando precisar fazer um backup manual (fora do agendamento automático das 3h AM):
+
+#### 1. Criar Job Manual de Backup
+
+```bash
+# Criar job a partir do CronJob existente
+ssh vps "kubectl create job --from=cronjob/postgres-backup backup-manual-$(date +%s) -n devquote"
+```
+
+#### 2. Acompanhar Execução
+
+```bash
+# Verificar status do pod
+ssh vps "kubectl get pods -n devquote | grep backup-manual"
+
+# Ver logs em tempo real
+ssh vps "kubectl logs -f <nome-do-pod> -n devquote"
+```
+
+#### 3. Verificar Sucesso
+
+Logs de sucesso devem mostrar:
+```
+✓ Backup created: devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql.gz (XX.XK)
+✓ Backup uploaded successfully to S3
+✓ Local backup file removed
+Backup completed successfully!
+```
+
+#### 4. Limpar Job Após Conclusão
+
+```bash
+# Deletar job de teste (opcional, será removido automaticamente após 1h)
+ssh vps "kubectl delete job <nome-do-job> -n devquote"
+```
+
+#### 5. Verificar Arquivo no S3
+
+Acesse o bucket S3 ou use AWS CLI:
+```bash
+aws s3 ls s3://devquote-storage/backups/postgresql/ --profile devquote
+```
+
+### Informações do Backup
+
+- **Localização S3**: `s3://devquote-storage/backups/postgresql/`
+- **Formato do arquivo**: `devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql.gz`
+- **Retenção**: 7 dias (limpeza automática)
+- **Tamanho médio**: ~50KB (comprimido com gzip)
+- **Storage Class**: STANDARD_IA (Infrequent Access)
+
+### Restaurar Backup
+
+```bash
+# 1. Baixar do S3
+aws s3 cp s3://devquote-storage/backups/postgresql/devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql.gz . --profile devquote
+
+# 2. Descompactar
+gunzip devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql.gz
+
+# 3. Restaurar no PostgreSQL
+ssh vps "kubectl exec -it postgres-0 -n devquote -- psql -U devquote_user -d devquote < devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql"
+```
 
 ---
 

@@ -35,6 +35,8 @@ spec:
           mountPath: /var/lib/grafana
         - name: datasources
           mountPath: /etc/grafana/provisioning/datasources
+        - name: tempo-datasource
+          mountPath: /etc/grafana/provisioning/datasources/tempo
         resources:
           requests:
             memory: "128Mi"
@@ -49,3 +51,6 @@ spec:
       - name: datasources
         configMap:
           name: grafana-loki-datasource
+      - name: tempo-datasource
+        configMap:
+          name: grafana-tempo-datasource

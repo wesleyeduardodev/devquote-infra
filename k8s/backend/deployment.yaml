@@ -40,6 +40,12 @@ spec:
           value: "redis.devquote.svc.cluster.local"
         - name: REDIS_PORT
           value: "6379"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://tempo.devquote.svc.cluster.local:4318"
+        - name: OTEL_SERVICE_NAME
+          value: "devquote-backend"
+        - name: OTEL_METRICS_EXPORTER
+          value: "none"
         resources:
           requests:
             memory: "512Mi"

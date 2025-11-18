@@ -75,6 +75,13 @@ spec:
               memory: "100Mi"
               cpu: "100m"
 
+        zookeeper:
+          enabled: true
+          image:
+            registry: docker.io
+            repository: bitnami/zookeeper
+            tag: 3.9.3-debian-12-r0
+
   destination:
     server: https://kubernetes.default.svc
     namespace: devquote

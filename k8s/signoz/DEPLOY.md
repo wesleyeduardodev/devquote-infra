@@ -1,31 +1,48 @@
-# 🚀 Deploy SigNoz - Guia Rápido
+# 🚀 Deploy SigNoz - 100% GitOps
 
-Guia passo a passo para deploy do SigNoz via **GitOps** (Argo CD).
+Deploy do SigNoz via **GitOps puro** (Argo CD). Zero comandos manuais na VPS!
 
 ---
 
 ## ✅ Pré-requisitos
 
 - [ ] Repositório `devquote-infra` clonado localmente
-- [ ] Acesso SSH à VPS (31.97.164.223)
 - [ ] Argo CD funcionando no cluster
-- [ ] Grafana/Prometheus ativos (serão mantidos)
+- [ ] Git configurado no seu computador
+
+---
+
+## 🎯 **Como Funciona (GitOps)**
+
+```yaml
+Fluxo Automatizado:
+├─ 1. git commit + push (seu computador)
+├─ 2. Argo CD detecta mudanças no GitHub
+├─ 3. Argo CD lê k8s/argocd/signoz-application.yaml
+├─ 4. Argo CD cria Application do SigNoz
+├─ 5. Application instala SigNoz via Helm
+├─ 6. Argo CD aplica k8s/signoz/middleware.yaml e ingress.yaml
+└─ 7. ✅ SigNoz funcionando!
+
+Tempo total: ~10-15 minutos
+Comandos manuais: ZERO! 🎉
+```
 
 ---
 
 ## 📋 Passo a Passo
 
-### **Etapa 1: Commit e Push (Seu Computador)**
+### **Etapa 1: Commit e Push**
 
 ```bash
-# Navegar para o repositório
+# No seu computador
 cd devquote-infra
 
 # Verificar arquivos criados
 git status
 
 # Deve aparecer:
-# - argocd/signoz-application.yaml (nova)
+# - k8s/argocd/signoz-application.yaml (nova)
 # - k8s/signoz/ (novo diretório)
 # - k8s/backend/deployment.yaml (modificado)
 
@@ -35,11 +52,13 @@ git add .
 # Commit
 git commit -m "feat: adiciona SigNoz para observabilidade completa
 
-- Adiciona Argo CD Application do SigNoz
+- Adiciona Argo CD Application do SigNoz via Helm
 - Configura OpenTelemetry no backend
-- Cria Ingress em /signoz
-- Otimizado para VPS 8GB RAM
-- Grafana permanece ativo para comparação"
+- Cria Ingress em /signoz com TLS
+- Middleware Traefik para strip prefix
+- Otimizado para VPS 8GB RAM (retenção 7d)
+- Grafana permanece ativo para comparação
+- 100% GitOps (zero comandos manuais)"
 
 # Push
 git push origin main
@@ -49,117 +68,60 @@ git push origin main
 
 ---
 
-### **Etapa 2: Aplicar Application no Argo CD (VPS)**
+### **Etapa 2: Aguardar Argo CD Sincronizar**
 
 ```bash
-# SSH na VPS
-ssh root@31.97.164.223
-
-# Ir para o repositório (se já tiver clonado)
-cd /root/devquote-infra
-
-# Ou clonar (se for primeira vez)
-git clone https://github.com/wesleyeduardodev/devquote-infra
-cd devquote-infra
-
-# Pull das mudanças
-git pull
-
-# Aplicar Application do SigNoz
-kubectl apply -f argocd/signoz-application.yaml
-
-# Verificar se Application foi criada
-kubectl get application signoz -n argocd
-```
-
-**⏱️ Tempo:** 2 minutos
-
----
-
-### **Etapa 3: Aguardar Argo CD Sincronizar**
-
-```bash
-# Acompanhar sincronização
-watch kubectl get application signoz -n argocd
+# Acompanhar sincronização via UI
+https://devquote.com.br/argocd
 
 # Status deve mudar:
-# OutOfSync → Syncing → Synced
+OutOfSync → Syncing → Synced
 
-# Ou ver na UI do Argo CD:
-# https://devquote.com.br/argocd
+# Ou via CLI (opcional):
+ssh vps "watch kubectl get application -n argocd"
 ```
 
-**⏱️ Tempo:** 3-5 minutos (download das imagens)
+**⏱️ Tempo:** 3-5 minutos
+
+**O que acontece:**
+1. Argo CD detecta `k8s/argocd/signoz-application.yaml`
+2. Cria Application "signoz" no namespace argocd
+3. Application instala SigNoz via Helm chart
+4. Argo CD aplica `k8s/signoz/middleware.yaml` e `ingress.yaml`
 
 ---
 
-### **Etapa 4: Verificar Pods**
+### **Etapa 3: Verificar Pods (Opcional)**
 
 ```bash
+# SSH na VPS (apenas para acompanhar)
+ssh vps
+
 # Ver pods do SigNoz
 kubectl get pods -n devquote -l app.kubernetes.io/instance=signoz
 
-# Aguardar todos ficarem Running (pode levar 5-10 min):
+# Aguardar todos ficarem Running (5-10 min):
 # NAME                                    READY   STATUS
 # signoz-clickhouse-0                     1/1     Running
 # signoz-query-service-xxx                1/1     Running
 # signoz-otel-collector-xxx               1/1     Running
 # signoz-frontend-xxx                     1/1     Running
 # signoz-alertmanager-xxx                 1/1     Running
+
+# Backend deve reiniciar automaticamente (Argo CD)
+kubectl get pods -n devquote -l app=backend
 ```
 
-**⏱️ Tempo:** 5-10 minutos
+**⏱️ Tempo:** 10 minutos
 
 ---
 
-### **Etapa 5: Aplicar Ingress e Middleware**
+### **Etapa 4: Acessar SigNoz**
 
-```bash
-# Aplicar middleware do Traefik
-kubectl apply -f k8s/signoz/middleware.yaml
-
-# Aplicar Ingress
-kubectl apply -f k8s/signoz/ingress.yaml
-
-# Verificar Ingress
-kubectl get ingress signoz-ingress -n devquote
 ```
+URL: https://devquote.com.br/signoz
 
-**⏱️ Tempo:** 1 minuto
-
----
-
-### **Etapa 6: Aguardar Backend Reiniciar (OTEL)**
-
-O Argo CD vai detectar mudanças no `k8s/backend/deployment.yaml` e reiniciar o backend.
-
-```bash
-# Acompanhar reinício do backend
-watch kubectl get pods -n devquote -l app=backend
-
-# O pod vai:
-# 1. Terminating (pod antigo)
-# 2. Init:0/1 (baixando OTEL agent)
-# 3. Running (pod novo com OTEL)
-
-# Ver logs do initContainer
-kubectl logs -f deployment/backend -n devquote -c download-otel-agent
-
-# Ver logs do backend (deve aparecer logs do OTEL)
-kubectl logs -f deployment/backend -n devquote
-```
-
-**⏱️ Tempo:** 2-3 minutos
-
----
-
-### **Etapa 7: Acessar SigNoz**
-
-```bash
-# Abrir no navegador:
-https://devquote.com.br/signoz
-
-# Primeiro acesso:
+Primeiro acesso:
 1. Criar conta admin
 2. Email: wesleyeduardo.dev@gmail.com
 3. Senha: <escolher senha forte>
@@ -170,10 +132,10 @@ https://devquote.com.br/signoz
 
 ---
 
-### **Etapa 8: Validar Coleta de Dados**
+### **Etapa 5: Validar Coleta de Dados**
 
 ```bash
-# Fazer algumas requisições no backend
+# Fazer requisições no backend
 curl https://devquote.com.br/api/tasks
 curl https://devquote.com.br/api/projects
 
@@ -201,10 +163,12 @@ curl https://devquote.com.br/api/projects
 ## ✅ Checklist Final
 
 ```
-[ ] Application do SigNoz criada no Argo CD
+[ ] git commit + push
+[ ] Argo CD sincronizou automaticamente
+[ ] Application "signoz" criada
 [ ] Todos os pods do SigNoz em Running
-[ ] Ingress acessível em /signoz
 [ ] Backend reiniciou com OTEL
+[ ] Ingress acessível em /signoz
 [ ] Conta admin criada no SigNoz
 [ ] Service "devquote-backend" aparecendo
 [ ] Traces sendo coletados
@@ -216,7 +180,23 @@ curl https://devquote.com.br/api/projects
 
 ## 🎯 Tempo Total
 
-**~15-20 minutos** (a maior parte é aguardando pods iniciarem)
+**~20-25 minutos** (a maior parte é aguardando pods iniciarem)
+
+**Comandos manuais:** ZERO! ✅
+
+---
+
+## 🔄 Nova VPS? Zero Comandos Manuais!
+
+```bash
+# Setup de nova VPS:
+1. Instalar K3s
+2. Instalar Argo CD
+3. Aplicar argocd/application.yaml (bootstrap inicial)
+4. git push → tudo automático! ✅
+
+# SigNoz será instalado automaticamente via GitOps!
+```
 
 ---
 
@@ -225,6 +205,8 @@ curl https://devquote.com.br/api/projects
 ### Ver Recursos Consumidos
 
 ```bash
+ssh vps
+
 # Recursos do SigNoz
 kubectl top pods -n devquote -l app.kubernetes.io/instance=signoz
 
@@ -241,25 +223,41 @@ kubectl top node
 # Todos os pods devem estar Running
 kubectl get pods -n devquote
 
+# Ver Applications do Argo CD
+kubectl get application -n argocd
+
 # Eventos recentes
 kubectl get events -n devquote --sort-by='.lastTimestamp' | head -20
 ```
 
 ---
 
-## ⚠️ Se Algo Der Errado
+## ⚠️ Troubleshooting
+
+### Argo CD não sincronizou
+
+**Causa:** Timeout ou erro de parse
+
+**Solução:**
+```bash
+# Ver logs do Argo CD
+ssh vps "kubectl logs -n argocd deployment/argocd-application-controller"
+
+# Forçar sync manual (via UI)
+https://devquote.com.br/argocd
+# Clicar em "signoz" → SYNC
+```
 
 ### Pods não iniciam (Pending/CrashLoopBackOff)
 
+**Causa:** Falta de recursos (RAM/CPU)
+
+**Solução:**
 ```bash
 # Ver motivo
 kubectl describe pod <nome-do-pod> -n devquote
 
-# Ver logs
-kubectl logs <nome-do-pod> -n devquote
-
-# Se for falta de recursos (OOMKilled):
-# Desabilitar Grafana temporariamente:
+# Se for OOMKilled, desabilitar Grafana temporariamente:
 kubectl scale deployment grafana -n devquote --replicas=0
 kubectl scale deployment prometheus -n devquote --replicas=0
 kubectl scale statefulset loki -n devquote --replicas=0
@@ -267,38 +265,57 @@ kubectl scale statefulset loki -n devquote --replicas=0
 
 ### Backend não envia dados
 
+**Causa:** OTEL Collector não está acessível
+
+**Solução:**
 ```bash
 # Verificar logs do backend
 kubectl logs -f deployment/backend -n devquote | grep -i otel
 
 # Deve aparecer:
 # "OpenTelemetry Javaagent started"
-# "Exporting spans to http://signoz-otel-collector:4318"
 
 # Verificar conectividade
 kubectl exec -it deployment/backend -n devquote -- \
   curl -v http://signoz-otel-collector.devquote.svc.cluster.local:4318
 ```
 
-### Rollback Completo
+---
+
+## 🔄 Rollback
+
+### Desinstalar SigNoz
 
 ```bash
-# Deletar Application do Argo CD
-kubectl delete application signoz -n argocd
+# No seu computador
+cd devquote-infra
 
-# Reverter commit
-cd /root/devquote-infra
-git revert HEAD
+# Deletar Application
+rm k8s/argocd/signoz-application.yaml
+
+# Deletar manifestos complementares
+rm -rf k8s/signoz/
+
+# Reverter backend
+git revert <commit-hash>
+
+# Commit + push
+git add .
+git commit -m "revert: remove SigNoz"
 git push
 
-# Argo CD aplica automaticamente
+# Argo CD remove automaticamente! ✅
 ```
 
 ---
 
 ## 🎉 Sucesso!
 
-SigNoz rodando em paralelo com Grafana!
+SigNoz rodando em paralelo com Grafana via **100% GitOps**!
+
+**URLs:**
+- **Grafana:** https://devquote.com.br/grafana (continua ativo)
+- **SigNoz:** https://devquote.com.br/signoz (novo!)
 
 **Próximos passos:**
 1. Testar por 1-2 semanas
@@ -307,10 +324,7 @@ SigNoz rodando em paralelo com Grafana!
 4. Configurar alertas
 5. Decidir qual manter
 
-**Grafana permanece funcionando!**
-- https://devquote.com.br/grafana (continua ativo)
-- https://devquote.com.br/signoz (novo!)
-
 ---
 
 **Última atualização:** 2025-01-18
+**Versão:** 2.0.0 (100% GitOps - Zero Comandos Manuais)

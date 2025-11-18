@@ -1,0 +1,89 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+  labels:
+    app: signoz
+    component: observability
+spec:
+  project: default
+
+  source:
+    repoURL: https://charts.signoz.io
+    chart: signoz
+    targetRevision: 0.61.0
+    helm:
+      valuesObject:
+        global:
+          storageClass: local-path
+
+        clickhouse:
+          enabled: true
+          persistence:
+            enabled: true
+            size: 10Gi
+          resources:
+            requests:
+              memory: "400Mi"
+              cpu: "300m"
+            limits:
+              memory: "700Mi"
+              cpu: "500m"
+
+        queryService:
+          enabled: true
+          replicas: 1
+          resources:
+            requests:
+              memory: "150Mi"
+              cpu: "100m"
+            limits:
+              memory: "250Mi"
+              cpu: "200m"
+
+        otelCollector:
+          enabled: true
+          resources:
+            requests:
+              memory: "150Mi"
+              cpu: "100m"
+            limits:
+              memory: "250Mi"
+              cpu: "200m"
+
+        frontend:
+          enabled: true
+          replicas: 1
+          resources:
+            requests:
+              memory: "100Mi"
+              cpu: "50m"
+            limits:
+              memory: "150Mi"
+              cpu: "100m"
+          ingress:
+            enabled: false
+
+        alertmanager:
+          enabled: true
+          resources:
+            requests:
+              memory: "50Mi"
+              cpu: "50m"
+            limits:
+              memory: "100Mi"
+              cpu: "100m"
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devquote
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+  revisionHistoryLimit: 10

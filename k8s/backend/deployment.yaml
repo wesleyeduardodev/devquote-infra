@@ -21,6 +21,19 @@ spec:
         prometheus.io/port: "8080"
         prometheus.io/path: "/actuator/prometheus"
     spec:
+      initContainers:
+      - name: download-otel-agent
+        image: curlimages/curl:latest
+        command:
+          - sh
+          - -c
+          - |
+            curl -L https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar \
+              -o /otel/opentelemetry-javaagent.jar
+        volumeMounts:
+        - name: otel-agent
+          mountPath: /otel
+
       containers:
       - name: backend
         image: wesleyeduardodev/devquote-backend:sha-1296366
@@ -40,6 +53,25 @@ spec:
           value: "redis.devquote.svc.cluster.local"
         - name: REDIS_PORT
           value: "6379"
+        - name: JAVA_TOOL_OPTIONS
+          value: "-javaagent:/otel/opentelemetry-javaagent.jar"
+        - name: OTEL_SERVICE_NAME
+          value: "devquote-backend"
+        - name: OTEL_TRACES_EXPORTER
+          value: "otlp"
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "http://signoz-otel-collector.devquote.svc.cluster.local:4318"
+        - name: OTEL_EXPORTER_OTLP_PROTOCOL
+          value: "http/protobuf"
+        - name: OTEL_METRICS_EXPORTER
+          value: "otlp"
+        - name: OTEL_LOGS_EXPORTER
+          value: "otlp"
+        - name: OTEL_RESOURCE_ATTRIBUTES
+          value: "service.name=devquote-backend,deployment.environment=production"
+        volumeMounts:
+        - name: otel-agent
+          mountPath: /otel
         resources:
           requests:
             memory: "512Mi"
@@ -63,3 +95,7 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
           failureThreshold: 3
+
+      volumes:
+      - name: otel-agent
+        emptyDir: {}

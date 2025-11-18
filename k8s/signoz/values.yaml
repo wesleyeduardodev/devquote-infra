@@ -1,0 +1,82 @@
+# SigNoz Helm Values - Otimizado para VPS 8GB RAM
+# Documentação: https://signoz.io/docs/install/kubernetes/
+
+global:
+  storageClass: local-path
+
+clickhouse:
+  enabled: true
+  persistence:
+    enabled: true
+    size: 10Gi
+
+  # Recursos otimizados para VPS
+  resources:
+    requests:
+      memory: "400Mi"
+      cpu: "300m"
+    limits:
+      memory: "700Mi"
+      cpu: "500m"
+
+  # Retenção reduzida (economiza disco e RAM)
+  clickhouseConfig:
+    ttl:
+      traces: "7d"
+      metrics: "7d"
+      logs: "7d"
+
+queryService:
+  enabled: true
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "150Mi"
+      cpu: "100m"
+    limits:
+      memory: "250Mi"
+      cpu: "200m"
+
+otelCollector:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "150Mi"
+      cpu: "100m"
+    limits:
+      memory: "250Mi"
+      cpu: "200m"
+
+  # Portas OTLP
+  ports:
+    otlp-grpc: 4317
+    otlp-http: 4318
+
+frontend:
+  enabled: true
+  replicas: 1
+
+  resources:
+    requests:
+      memory: "100Mi"
+      cpu: "50m"
+    limits:
+      memory: "150Mi"
+      cpu: "100m"
+
+  # Ingress será customizado separadamente
+  ingress:
+    enabled: false
+
+alertmanager:
+  enabled: true
+
+  resources:
+    requests:
+      memory: "50Mi"
+      cpu: "50m"
+    limits:
+      memory: "100Mi"
+      cpu: "100m"

@@ -1,0 +1,12 @@
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: signoz-stripprefix
+  namespace: devquote
+  labels:
+    app: signoz
+    component: observability
+spec:
+  stripPrefix:
+    prefixes:
+      - /signoz

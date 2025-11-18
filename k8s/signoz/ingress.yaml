@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: signoz-ingress
+  namespace: devquote
+  labels:
+    app: signoz
+    component: observability
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: devquote-signoz-stripprefix@kubernetescrd
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - devquote.com.br
+    secretName: devquote-tls
+  rules:
+  - host: devquote.com.br
+    http:
+      paths:
+      - path: /signoz
+        pathType: Prefix
+        backend:
+          service:
+            name: signoz-frontend
+            port:
+              number: 3301

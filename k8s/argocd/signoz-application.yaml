@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://charts.signoz.io
     chart: signoz
-    targetRevision: 0.66.3
+    targetRevision: 0.50.0
     helm:
       valuesObject:
         global:
@@ -74,13 +74,6 @@ spec:
             limits:
               memory: "100Mi"
               cpu: "100m"
-
-        zookeeper:
-          enabled: true
-          image:
-            registry: docker.io
-            repository: bitnami/zookeeper
-            tag: 3.9.3-debian-12-r0
 
   destination:
     server: https://kubernetes.default.svc

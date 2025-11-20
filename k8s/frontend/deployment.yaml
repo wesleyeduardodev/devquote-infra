@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: wesleyeduardodev/devquote-frontend:sha-8757b8e
+        image: wesleyeduardodev/devquote-frontend:sha-7f9c698
         imagePullPolicy: Always
         ports:
         - containerPort: 80

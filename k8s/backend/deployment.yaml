@@ -40,6 +40,8 @@ spec:
           value: "redis.devquote.svc.cluster.local"
         - name: REDIS_PORT
           value: "6379"
+        - name: TRACING_ENABLED
+          value: "true"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://tempo.devquote.svc.cluster.local:4318/v1/traces"
         - name: OTEL_SERVICE_NAME

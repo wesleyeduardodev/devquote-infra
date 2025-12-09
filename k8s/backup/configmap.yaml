@@ -19,7 +19,7 @@ data:
     BACKUP_FILE="devquote-backup-postgres-${TIMESTAMP}.sql.gz"
     S3_BUCKET="${AWS_S3_BUCKET_NAME}"
     S3_PATH="s3://${S3_BUCKET}/backups/postgresql/${BACKUP_FILE}"
-    RETENTION_DAYS=7
+    RETENTION_DAYS=365
 
     # Criar diretório temporário
     mkdir -p ${BACKUP_DIR}

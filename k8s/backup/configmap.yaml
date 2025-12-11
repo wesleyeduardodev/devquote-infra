@@ -55,20 +55,27 @@ data:
       exit 1
     fi
 
-    # Limpar backups antigos no S3 (mantém últimos 7 dias)
+    # Limpar backups antigos no S3
     echo "→ Cleaning old backups (keeping last ${RETENTION_DAYS} days)..."
-    CUTOFF_DATE=$(python3 -c "import datetime; print((datetime.datetime.now() - datetime.timedelta(days=${RETENTION_DAYS})).strftime('%d-%m-%Y'))")
+    CUTOFF_DATE=$(python3 -c "import datetime; print((datetime.datetime.now() - datetime.timedelta(days=${RETENTION_DAYS})).strftime('%Y%m%d'))")
 
     aws s3 ls "s3://${S3_BUCKET}/backups/postgresql/" | while read -r line; do
       FILE_NAME=$(echo $line | awk '{print $4}')
 
       # Extrair data do nome: devquote-backup-postgres-DD-MM-YYYY-HH-MM-SS.sql.gz
-      # Extrai DD-MM-YYYY (posições 4, 5, 6)
-      FILE_DATE=$(echo "$FILE_NAME" | cut -d'-' -f4-6)
+      # Extrai DD-MM-YYYY (posições 4, 5, 6) e converte para YYYYMMDD para comparação
+      FILE_DATE_RAW=$(echo "$FILE_NAME" | cut -d'-' -f4-6)
+      if [ ! -z "$FILE_DATE_RAW" ]; then
+        # Converte DD-MM-YYYY para YYYYMMDD
+        DAY=$(echo "$FILE_DATE_RAW" | cut -d'-' -f1)
+        MONTH=$(echo "$FILE_DATE_RAW" | cut -d'-' -f2)
+        YEAR=$(echo "$FILE_DATE_RAW" | cut -d'-' -f3)
+        FILE_DATE="${YEAR}${MONTH}${DAY}"
 
-      if [ ! -z "$FILE_DATE" ] && [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
-        echo "  Deleting old backup: ${FILE_NAME}"
-        aws s3 rm "s3://${S3_BUCKET}/backups/postgresql/${FILE_NAME}"
+        if [[ "$FILE_DATE" < "$CUTOFF_DATE" ]]; then
+          echo "  Deleting old backup: ${FILE_NAME} (date: ${FILE_DATE})"
+          aws s3 rm "s3://${S3_BUCKET}/backups/postgresql/${FILE_NAME}"
+        fi
       fi
     done
 

@@ -53,7 +53,7 @@ data:
       per_stream_rate_limit_burst: 15MB
       max_streams_per_user: 0
       max_global_streams_per_user: 0
-      retention_period: 360h
+      retention_period: 720h
 
     # Compactor para Loki 2.9
     compactor:
